@@ -1,16 +1,23 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
+from database import SessionLocal, engine
 
 from schemas import *
-from db import session
-import models
+import models, crud
 
-app = FastAPI(title="SayHello(留言板)",
-              description="""
-              翻自 《Flask Web开发实战_入门、进阶与原理解析（李辉著 ）》 中的实战项目SayHello
-              原版Github: https://github.com/greyli/sayhello
-              """
+models.Base.metadata.create_all(bind=engine)
+
+def get_db():
+    db = ''
+    try:
+        db = SessionLocal()
+        yield db
+    finally:
+        db.close()
+
+app = FastAPI(title="one night wolf",
               )
 
 # 设置跨域
@@ -22,29 +29,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.post("/onenightwolf/playground/create/room/{rm_id}/ri/{role_init}")
+def create_game(rm_id: int, role_init: str, db: Session = Depends(get_db)):
+    game = crud.get_game(db, rm_id)
+    if game:
+        raise HTTPException(status_code=400, detail="room taken")
+    return crud.create_game(db, rm_id, role_init)
 
-@app.get("/index", name="欢迎首页")
-async def index():
-    return {"msg": "欢迎来到SayHello!"}
+@app.post("/onenightwolf/playground/delete/room/{rm_id}")
+def delete_game(rm_id: int, db: Session = Depends(get_db)):
+    return crud.delete_room(db, rm_id)
 
+@app.get("/onenightwolf/playground/search/room/{rm_id}")
+def get_game(rm_id: int, db: Session = Depends(get_db)):
+    game = crud.get_game(db, rm_id)
+    if game is None:
+        raise HTTPException(status_code=404, detail="game not found")
+    return game
 
-@app.post("/message", name="添加留言", response_model=Response200)
-async def add_message(message: MessageCreate):
-    message_obj = models.Message(
-        name=message.name,
-        body=message.body
-    )
-    session.add(message_obj)
-    session.commit()
-    session.refresh(message_obj)
-    return Response200(data=message_obj)
+@app.post("/onenightwolf/prepare/create/room/{rm_id}/pos/{pos}/name/{username}")
+def create_player(rm_id: int, pos: int, username: str, db: Session = Depends(get_db)):
+    player = crud.get_player_by_room_pos_name(db, rm_id, pos, username)
+    if player:
+        raise HTTPException(status_code=400, detail="position taken")
+    return crud.create_player(db, rm_id, pos, username)
 
-
-@app.get("/message", name="分页获取留言列表", response_model=ResponseList200)
-async def get_messages(limit: int = 5, page: int = 1):
-    # 统计条数
-    total = session.query(func.count(models.Message.id)).scalar()
-    skip = (page - 1) * limit   # 计算当前页的起始数
-    # 倒序显示
-    data = session.query(models.Message).order_by(models.Message.create_at.desc()).offset(skip).limit(limit).all()
-    return ResponseList200(total=total, data=data)
+@app.get("/onenightwolf/prepare/search/room/{rm_id}/pos/{pos}/name/{username}")
+def get_player(rm_id: int, pos: int, username: str, db: Session = Depends(get_db)):
+    player = crud.get_player_by_room_pos_name(db, rm_id, pos, username)
+    if player is None:
+        raise HTTPException(status_code=404, detail="No such player")
+    return player
