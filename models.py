@@ -4,14 +4,6 @@ from sqlalchemy import Column, String, DateTime, Integer
 
 from database import Base
 
-# class Message(Base):
-    # __tablename__ = "message"
-    # id = Column(Integer, primary_key=True, index=True)
-    # name = Column(String(60), comment="昵称", nullable=False)
-    # body = Column(String(200), comment="内容", nullable=False)
-    # create_at = Column(DateTime, default=datetime.now, comment="创建时间")
-
-
 class Game(Base):
     __tablename__ = "game"
 
